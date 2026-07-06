@@ -14,18 +14,23 @@ import (
 
 	"github.com/rokuosan/gh-gist-skill/internal/agent"
 	"github.com/rokuosan/gh-gist-skill/internal/gist"
+	"github.com/rokuosan/gh-gist-skill/internal/git"
 	"github.com/rokuosan/gh-gist-skill/internal/skill"
 )
 
 const skillFileName = "SKILL.md"
 
 // Copy implements `gh gist-skill copy <gist-url|gist-id>`: it takes a
-// fire-and-forget snapshot of a gist into <path>/<name> and links it into
-// the Claude Code skills directory. The copy is not tracked afterwards;
+// fire-and-forget snapshot of a gist. The copy is not tracked afterwards;
 // running copy again overwrites it.
+//
+// Inside a git repository (project scope) the snapshot goes to
+// <root>/.agents/skills/<name> with a repo-local ./.claude/skills link.
+// Outside one (user scope) it goes to ~/.agents/skills/<name> with a
+// ~/.claude/skills link. An explicit --path just places the files there.
 func Copy(args []string) error {
 	fs := flag.NewFlagSet("copy", flag.ContinueOnError)
-	path := fs.String("path", filepath.Join(".agents", "skills"), "destination directory for the skill snapshot")
+	path := fs.String("path", "", "custom destination directory (skips symlinks)")
 	noLink := fs.Bool("no-link", false, "skip creating symlinks into agent skill directories")
 	fs.Usage = func() {
 		fmt.Fprintln(fs.Output(), "Usage: gh gist-skill copy <gist-url|gist-id> [flags]")
@@ -47,12 +52,40 @@ func Copy(args []string) error {
 		return err
 	}
 
-	dest := filepath.Join(*path, name)
+	if *path != "" {
+		dest := filepath.Join(*path, name)
+		if err := writeSnapshot(httpClient, g, dest); err != nil {
+			return err
+		}
+		fmt.Printf("✓ Copied snapshot: %s\n", dest)
+		return nil
+	}
+
+	if git.IsInsideWorkTree(".") {
+		root, err := git.RepoRoot(".")
+		if err != nil {
+			return err
+		}
+		dest := filepath.Join(root, ".agents", "skills", name)
+		if err := writeSnapshot(httpClient, g, dest); err != nil {
+			return err
+		}
+		fmt.Printf("✓ Copied snapshot: %s\n", dest)
+		if *noLink {
+			return nil
+		}
+		return linkProject(root, name)
+	}
+
+	agentsDir, err := agent.AgentsSkillsDir()
+	if err != nil {
+		return err
+	}
+	dest := filepath.Join(agentsDir, name)
 	if err := writeSnapshot(httpClient, g, dest); err != nil {
 		return err
 	}
 	fmt.Printf("✓ Copied snapshot: %s\n", dest)
-
 	if *noLink {
 		return nil
 	}
@@ -88,6 +121,24 @@ func resolveGistSkill(arg string) (*gist.Gist, string, *http.Client, error) {
 	}
 	fmt.Printf("✓ Detected skill name from %s: %s\n", skillFileName, name)
 	return g, name, httpClient, nil
+}
+
+// projectLinkTarget is the relative symlink target used for repo-local
+// ./.claude/skills/<name> links (resolved from inside .claude/skills).
+func projectLinkTarget(name string) string {
+	return filepath.Join("..", "..", ".agents", "skills", name)
+}
+
+// linkProject symlinks <root>/.claude/skills/<name> to the project-scope
+// skill via a relative path, so the link is committable and nothing outside
+// the repository is touched.
+func linkProject(root, name string) error {
+	link, err := agent.Link(filepath.Join(root, ".claude", "skills"), name, projectLinkTarget(name))
+	if err != nil {
+		return err
+	}
+	fmt.Printf("✓ Linked: %s\n", link)
+	return nil
 }
 
 // linkClaude symlinks ~/.claude/skills/<name> to dest, skipping the link

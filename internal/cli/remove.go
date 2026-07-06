@@ -61,21 +61,21 @@ func Remove(args []string) error {
 	}
 
 	s := matches[0]
-	target, err := filepath.Abs(s.dir())
-	if err != nil {
-		return err
-	}
 	if s.Scope == "project" {
 		if err := removeSubmodule(s); err != nil {
 			return err
 		}
 		fmt.Printf("✓ Removed submodule: %s (commit the change to finish)\n", s.Path)
-	} else {
-		if err := os.RemoveAll(s.Path); err != nil {
-			return err
-		}
-		fmt.Printf("✓ Removed: %s\n", s.Path)
+		return agent.RemoveLink(filepath.Join(s.repoRoot, ".claude", "skills"), name, projectLinkTarget(name))
 	}
+	target, err := filepath.Abs(s.dir())
+	if err != nil {
+		return err
+	}
+	if err := os.RemoveAll(s.Path); err != nil {
+		return err
+	}
+	fmt.Printf("✓ Removed: %s\n", s.Path)
 	return removeLinks(name, target)
 }
 

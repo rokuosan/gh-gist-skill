@@ -62,21 +62,27 @@ func Add(args []string) error {
 }
 
 // addSubmodule installs the skill as a git submodule (project scope).
-// The path is fixed to .agents/skills so list/update/remove always find it.
+// The path is fixed to .agents/skills at the repository root so
+// list/update/remove always find it; the only link is repo-local.
 func addSubmodule(cloneURL, name string, noLink bool) error {
-	dest := filepath.Join(".agents", "skills", name)
+	root, err := git.RepoRoot(".")
+	if err != nil {
+		return err
+	}
+	path := filepath.Join(".agents", "skills", name)
+	dest := filepath.Join(root, path)
 	if _, err := os.Lstat(dest); err == nil {
 		return fmt.Errorf("%s already exists; remove it first", dest)
 	}
-	if err := git.SubmoduleAdd(".", cloneURL, dest); err != nil {
+	if err := git.SubmoduleAdd(root, cloneURL, path); err != nil {
 		return err
 	}
-	fmt.Printf("✓ Added submodule: %s\n", dest)
+	fmt.Printf("✓ Added submodule: %s\n", path)
 
 	if noLink {
 		return nil
 	}
-	return linkClaude(dest, name)
+	return linkProject(root, name)
 }
 
 // addClone installs the skill as an independent clone in the user store
