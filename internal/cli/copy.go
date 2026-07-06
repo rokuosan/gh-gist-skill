@@ -104,13 +104,24 @@ func detectName(httpClient *http.Client, g *gist.Gist) (string, error) {
 	return skill.ParseName(content)
 }
 
+// writeSnapshot downloads all gist files into a temporary directory and only
+// replaces dest once every file has been written, so a mid-download failure
+// does not destroy an existing copy.
 func writeSnapshot(httpClient *http.Client, g *gist.Gist, dest string) error {
-	if err := os.RemoveAll(dest); err != nil {
+	parent := filepath.Dir(dest)
+	if err := os.MkdirAll(parent, 0o755); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(dest, 0o755); err != nil {
+	tmp, err := os.MkdirTemp(parent, ".gist-skill-tmp-")
+	if err != nil {
 		return err
 	}
+	defer os.RemoveAll(tmp)
+	// MkdirTemp creates the directory with 0700; align with MkdirAll above.
+	if err := os.Chmod(tmp, 0o755); err != nil {
+		return err
+	}
+
 	for _, f := range g.Files {
 		if err := validateFilename(f.Filename); err != nil {
 			return err
@@ -119,11 +130,15 @@ func writeSnapshot(httpClient *http.Client, g *gist.Gist, dest string) error {
 		if err != nil {
 			return err
 		}
-		if err := os.WriteFile(filepath.Join(dest, f.Filename), []byte(content), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(tmp, f.Filename), []byte(content), 0o644); err != nil {
 			return err
 		}
 	}
-	return nil
+
+	if err := os.RemoveAll(dest); err != nil {
+		return err
+	}
+	return os.Rename(tmp, dest)
 }
 
 // validateFilename rejects filenames that could escape the destination
