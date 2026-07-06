@@ -12,6 +12,24 @@ $ gh extension install rokuosan/gh-gist-skill
 
 ## Usage
 
+### `add` — install as a git submodule
+
+Run inside a git repository (your dotfiles, a project, …):
+
+```console
+$ gh gist-skill add https://gist.github.com/k16shikano/fd287c3133457c4fd8f5601d34aa817d
+✓ Resolved gist: fd287c3133457c4fd8f5601d34aa817d
+✓ Detected skill name from SKILL.md: japanese-tech-writing
+✓ Added submodule: .agents/skills/japanese-tech-writing
+✓ Linked: ~/.claude/skills/japanese-tech-writing
+```
+
+The skill is added with `git submodule add https://gist.github.com/<id>.git .agents/skills/<name>` and staged together with `.gitmodules` — review and commit as usual. It is pinned to the current commit and travels with your repository; on another machine, `git submodule update --init` restores it. If the destination path already exists, `add` refuses and asks you to remove it first.
+
+`add` currently supports project scope only (inside a git repository). Running it elsewhere is an error; user-scope clone mode is planned (M3).
+
+### `copy` — snapshot install
+
 ```console
 $ gh gist-skill copy https://gist.github.com/k16shikano/fd287c3133457c4fd8f5601d34aa817d
 ✓ Resolved gist: fd287c3133457c4fd8f5601d34aa817d
@@ -29,7 +47,7 @@ $ gh gist-skill copy https://gist.github.com/k16shikano/fd287c3133457c4fd8f5601d
 
 The snapshot is plain files — it does not appear in any manifest and there is no update tracking. To update a skill, run `copy` again; it replaces the existing snapshot atomically.
 
-### Flags
+### Flags (both commands)
 
 | Flag | Description |
 | --- | --- |
@@ -43,8 +61,8 @@ The snapshot is plain files — it does not appear in any manifest and there is 
 
 ## Roadmap
 
-- [x] M1: `copy` — snapshot install (this release)
-- [ ] M2: `add` — install as a git submodule inside a repository (pinned to a commit, distributable with the repo)
+- [x] M1: `copy` — snapshot install
+- [x] M2: `add` — install as a git submodule inside a repository (pinned to a commit, distributable with the repo)
 - [ ] M3: `update` / `remove` / `list`, clone mode for user scope
 - [ ] M4: multi-agent support via a config file
 
