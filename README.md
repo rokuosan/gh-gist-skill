@@ -26,7 +26,26 @@ $ gh gist-skill add https://gist.github.com/k16shikano/fd287c3133457c4fd8f5601d3
 
 The skill is added with `git submodule add https://gist.github.com/<id>.git .agents/skills/<name>` and staged together with `.gitmodules` — review and commit as usual. It is pinned to the current commit and travels with your repository; on another machine, `git submodule update --init` restores it. If the destination path already exists, `add` refuses and asks you to remove it first.
 
-`add` currently supports project scope only (inside a git repository). Running it elsewhere is an error; user-scope clone mode is planned (M3).
+Outside a git repository (or with `--scope user`), `add` instead clones the gist into `$XDG_DATA_HOME/gh-gist-skill/skills/<name>` (default `~/.local/share/...`) and links it into `~/.agents/skills` and `~/.claude/skills`. Each skill is an independent clone; no parent repository is created.
+
+### `update` / `remove` / `list` — manage installed skills
+
+```console
+$ gh gist-skill list
+NAME                   SCOPE    COMMIT   STATUS      PATH
+japanese-tech-writing  project  5ed08e4  up to date  .agents/skills/japanese-tech-writing
+
+$ gh gist-skill update                  # or: update <name>
+✓ japanese-tech-writing (project): 5ed08e4 -> 9c2f1ab
+Note: updated submodules are not committed; review and commit to pin the new versions.
+
+$ gh gist-skill remove japanese-tech-writing
+✓ Removed submodule: .agents/skills/japanese-tech-writing (commit the change to finish)
+```
+
+These commands cover both scopes: project-scope submodules under `.agents/skills/` in the current repository, and user-scope clones in the data directory. `update` uses `git submodule update --remote` for submodules (the new pin needs a commit) and `git pull --ff-only` for clones. `remove` also deletes the symlinks the tool created and cleans up `.git/modules`. `list --no-status` skips the network check for upstream updates.
+
+Skills installed with `copy` do not appear here — a copy is a plain snapshot with no tracking, by design.
 
 ### `copy` — snapshot install
 
@@ -63,7 +82,7 @@ The snapshot is plain files — it does not appear in any manifest and there is 
 
 - [x] M1: `copy` — snapshot install
 - [x] M2: `add` — install as a git submodule inside a repository (pinned to a commit, distributable with the repo)
-- [ ] M3: `update` / `remove` / `list`, clone mode for user scope
+- [x] M3: `update` / `remove` / `list`, clone mode for user scope
 - [ ] M4: multi-agent support via a config file
 
 ## Development
