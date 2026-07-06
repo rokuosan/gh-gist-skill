@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/cli/go-gh/v2/pkg/api"
 
@@ -111,14 +112,27 @@ func writeSnapshot(httpClient *http.Client, g *gist.Gist, dest string) error {
 		return err
 	}
 	for _, f := range g.Files {
+		if err := validateFilename(f.Filename); err != nil {
+			return err
+		}
 		content, err := gist.FileContent(httpClient, f)
 		if err != nil {
 			return err
 		}
-		// Gists are flat; a filename never contains path separators.
 		if err := os.WriteFile(filepath.Join(dest, f.Filename), []byte(content), 0o644); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// validateFilename rejects filenames that could escape the destination
+// directory. Gists are flat so legitimate filenames never contain path
+// separators, but the API response is not trusted.
+func validateFilename(name string) error {
+	if name == "" || name == "." || name == ".." ||
+		strings.ContainsAny(name, `/\`) || filepath.IsAbs(name) {
+		return fmt.Errorf("refusing to write unsafe filename %q from gist", name)
 	}
 	return nil
 }
