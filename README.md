@@ -21,10 +21,12 @@ $ gh gist-skill add https://gist.github.com/k16shikano/fd287c3133457c4fd8f5601d3
 ✓ Resolved gist: fd287c3133457c4fd8f5601d34aa817d
 ✓ Detected skill name from SKILL.md: japanese-tech-writing
 ✓ Added submodule: .agents/skills/japanese-tech-writing
-✓ Linked: ~/.claude/skills/japanese-tech-writing
+✓ Linked: .claude/skills/japanese-tech-writing
 ```
 
-The skill is added with `git submodule add https://gist.github.com/<id>.git .agents/skills/<name>` and staged together with `.gitmodules` — review and commit as usual. It is pinned to the current commit and travels with your repository; on another machine, `git submodule update --init` restores it. If the destination path already exists, `add` refuses and asks you to remove it first.
+The skill is added with `git submodule add https://gist.github.com/<id>.git .agents/skills/<name>` at the repository root and staged together with `.gitmodules` — review and commit as usual. It is pinned to the current commit and travels with your repository; on another machine, `git submodule update --init` restores it. If the destination path already exists, `add` refuses and asks you to remove it first.
+
+Project-scope installs stay inside the repository: the only link is a committable relative symlink `./.claude/skills/<name>` → `../../.agents/skills/<name>`, and nothing is written to your home directory.
 
 Outside a git repository (or with `--scope user`), `add` instead clones the gist into `$XDG_DATA_HOME/gh-gist-skill/skills/<name>` (default `~/.local/share/...`) and links it into `~/.agents/skills` and `~/.claude/skills`. Each skill is an independent clone; no parent repository is created.
 
@@ -61,8 +63,10 @@ $ gh gist-skill copy https://gist.github.com/k16shikano/fd287c3133457c4fd8f5601d
 
 1. Resolves the gist from a URL (with or without `#file-` fragment) or a bare gist ID
 2. Reads the `name:` from `SKILL.md` frontmatter and validates it against the Agent Skills spec
-3. Copies all gist files into `.agents/skills/<name>/` (no `.git`, not tracked)
-4. Symlinks `~/.claude/skills/<name>` to the copy
+3. Copies all gist files (no `.git`, not tracked) following the same scope rules as `add`:
+   - inside a git repository → `<root>/.agents/skills/<name>/` with a relative `./.claude/skills/<name>` link
+   - outside → `~/.agents/skills/<name>/` with a `~/.claude/skills/<name>` link
+   - with `--path <dir>` → `<dir>/<name>/`, no links
 
 The snapshot is plain files — it does not appear in any manifest and there is no update tracking. To update a skill, run `copy` again; it replaces the existing snapshot atomically.
 
@@ -72,7 +76,7 @@ The snapshot is plain files — it does not appear in any manifest and there is 
 | --- | --- | --- |
 | `add` | `--scope <s>` | `auto` (default), `project` (submodule), or `user` (clone) |
 | `add`, `copy` | `--no-link` | Skip creating symlinks into agent skill directories |
-| `copy` | `--path <dir>` | Destination directory (default: `.agents/skills`) |
+| `copy` | `--path <dir>` | Custom destination directory (skips symlinks) |
 | `remove` | `--scope <s>` | Disambiguate when a skill exists in both scopes |
 | `list` | `--no-status` | Skip the network check for upstream updates |
 
