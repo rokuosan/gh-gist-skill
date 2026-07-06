@@ -47,7 +47,7 @@ func TestParseID(t *testing.T) {
 }
 
 func TestFileContent(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("full content"))
 	}))
 	defer srv.Close()
@@ -62,5 +62,12 @@ func TestFileContent(t *testing.T) {
 	got, err = FileContent(srv.Client(), truncated)
 	if err != nil || got != "full content" {
 		t.Errorf("truncated: got (%q, %v), want (\"full content\", nil)", got, err)
+	}
+
+	for _, raw := range []string{"", "http://example.com/raw", "::bad::"} {
+		bad := File{Filename: "SKILL.md", Content: "partial", Truncated: true, RawURL: raw}
+		if _, err := FileContent(srv.Client(), bad); err == nil {
+			t.Errorf("raw_url %q: want error, got nil", raw)
+		}
 	}
 }

@@ -79,6 +79,10 @@ func FileContent(httpClient *http.Client, f File) (string, error) {
 	if !f.Truncated {
 		return f.Content, nil
 	}
+	u, err := url.Parse(f.RawURL)
+	if err != nil || u.Scheme != "https" || u.Host == "" {
+		return "", fmt.Errorf("gist file %s is truncated but has no usable raw_url (%q)", f.Filename, f.RawURL)
+	}
 	resp, err := httpClient.Get(f.RawURL)
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch %s: %w", f.Filename, err)
