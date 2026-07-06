@@ -10,6 +10,7 @@ import (
 const usage = `gh gist-skill: install Agent Skills published as GitHub Gists
 
 Usage:
+  gh gist-skill add <gist-url|gist-id> [flags]    install as a git submodule (inside a repo)
   gh gist-skill copy <gist-url|gist-id> [flags]   snapshot-copy a gist skill (not tracked)
 
 Run 'gh gist-skill <command> --help' for command flags.
@@ -22,6 +23,8 @@ func main() {
 	}
 	var err error
 	switch os.Args[1] {
+	case "add":
+		err = cli.Add(os.Args[2:])
 	case "copy":
 		err = cli.Copy(os.Args[2:])
 	case "-h", "--help", "help":

@@ -42,31 +42,10 @@ func Copy(args []string) error {
 		return fmt.Errorf("expected exactly one gist URL or ID")
 	}
 
-	id, err := gist.ParseID(fs.Arg(0))
+	g, name, httpClient, err := resolveGistSkill(fs.Arg(0))
 	if err != nil {
 		return err
 	}
-
-	restClient, err := api.DefaultRESTClient()
-	if err != nil {
-		return fmt.Errorf("failed to create GitHub API client (is gh logged in?): %w", err)
-	}
-	httpClient, err := api.DefaultHTTPClient()
-	if err != nil {
-		return err
-	}
-
-	g, err := gist.Fetch(restClient, id)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("✓ Resolved gist: %s\n", g.ID)
-
-	name, err := detectName(httpClient, g)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("✓ Detected skill name from %s: %s\n", skillFileName, name)
 
 	dest := filepath.Join(*path, name)
 	if err := writeSnapshot(httpClient, g, dest); err != nil {
@@ -77,6 +56,43 @@ func Copy(args []string) error {
 	if *noLink {
 		return nil
 	}
+	return linkClaude(dest, name)
+}
+
+// resolveGistSkill runs the shared front half of every install: parse the
+// gist reference, fetch its metadata, and detect the validated skill name.
+func resolveGistSkill(arg string) (*gist.Gist, string, *http.Client, error) {
+	id, err := gist.ParseID(arg)
+	if err != nil {
+		return nil, "", nil, err
+	}
+
+	restClient, err := api.DefaultRESTClient()
+	if err != nil {
+		return nil, "", nil, fmt.Errorf("failed to create GitHub API client (is gh logged in?): %w", err)
+	}
+	httpClient, err := api.DefaultHTTPClient()
+	if err != nil {
+		return nil, "", nil, err
+	}
+
+	g, err := gist.Fetch(restClient, id)
+	if err != nil {
+		return nil, "", nil, err
+	}
+	fmt.Printf("✓ Resolved gist: %s\n", g.ID)
+
+	name, err := detectName(httpClient, g)
+	if err != nil {
+		return nil, "", nil, err
+	}
+	fmt.Printf("✓ Detected skill name from %s: %s\n", skillFileName, name)
+	return g, name, httpClient, nil
+}
+
+// linkClaude symlinks ~/.claude/skills/<name> to dest, skipping the link
+// when dest already lives in that directory.
+func linkClaude(dest, name string) error {
 	absDest, err := filepath.Abs(dest)
 	if err != nil {
 		return err
