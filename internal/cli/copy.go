@@ -47,6 +47,14 @@ func Copy(args []string) error {
 		return fmt.Errorf("expected exactly one gist URL or ID")
 	}
 
+	if *path == "" {
+		scope, reason, err := resolveScope("auto")
+		if err != nil {
+			return err
+		}
+		fmt.Printf("✓ Scope: %s (%s)\n", scope, reason)
+	}
+
 	g, name, httpClient, err := resolveGistSkill(fs.Arg(0))
 	if err != nil {
 		return err

@@ -19,7 +19,7 @@ import (
 // linked into the agent skill directories.
 func Add(args []string) error {
 	fs := flag.NewFlagSet("add", flag.ContinueOnError)
-	scope := fs.String("scope", "auto", "installation scope: auto, project (submodule), or user (clone)")
+	scope := fs.String("scope", "auto", "project (submodule) or user (clone); auto picks project inside a git repository, user outside")
 	noLink := fs.Bool("no-link", false, "skip creating symlinks into agent skill directories")
 	fs.Usage = func() {
 		fmt.Fprintln(fs.Output(), "Usage: gh gist-skill add <gist-url|gist-id> [flags]")
@@ -36,18 +36,14 @@ func Add(args []string) error {
 		return fmt.Errorf("expected exactly one gist URL or ID")
 	}
 
-	insideRepo := git.IsInsideWorkTree(".")
-	switch *scope {
-	case "auto":
-	case "project":
-		if !insideRepo {
-			return fmt.Errorf("--scope project requires a git repository")
-		}
-	case "user":
-		insideRepo = false
-	default:
-		return fmt.Errorf("invalid --scope %q (auto, project, or user)", *scope)
+	resolved, reason, err := resolveScope(*scope)
+	if err != nil {
+		return err
 	}
+	if *scope == "auto" && resolved == "project" {
+		reason += "; --scope user to override"
+	}
+	fmt.Printf("✓ Scope: %s (%s)\n", resolved, reason)
 
 	g, name, _, err := resolveGistSkill(fs.Arg(0))
 	if err != nil {
@@ -55,10 +51,32 @@ func Add(args []string) error {
 	}
 	cloneURL := "https://gist.github.com/" + g.ID + ".git"
 
-	if insideRepo {
+	if resolved == "project" {
 		return addSubmodule(cloneURL, name, *noLink)
 	}
 	return addClone(cloneURL, name, *noLink)
+}
+
+// resolveScope turns a --scope flag value into "project" or "user", with a
+// human-readable reason so auto-detection is never silent.
+func resolveScope(flagValue string) (scope, reason string, err error) {
+	inside := git.IsInsideWorkTree(".")
+	switch flagValue {
+	case "auto":
+		if inside {
+			return "project", "git repository detected", nil
+		}
+		return "user", "no git repository here", nil
+	case "project":
+		if !inside {
+			return "", "", fmt.Errorf("--scope project requires a git repository")
+		}
+		return "project", "--scope project", nil
+	case "user":
+		return "user", "--scope user", nil
+	default:
+		return "", "", fmt.Errorf("invalid --scope %q (auto, project, or user)", flagValue)
+	}
 }
 
 // addSubmodule installs the skill as a git submodule (project scope).

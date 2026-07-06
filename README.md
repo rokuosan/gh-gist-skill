@@ -18,11 +18,14 @@ Run inside a git repository (your dotfiles, a project, …):
 
 ```console
 $ gh gist-skill add https://gist.github.com/k16shikano/fd287c3133457c4fd8f5601d34aa817d
+✓ Scope: project (git repository detected; --scope user to override)
 ✓ Resolved gist: fd287c3133457c4fd8f5601d34aa817d
 ✓ Detected skill name from SKILL.md: japanese-tech-writing
 ✓ Added submodule: .agents/skills/japanese-tech-writing
 ✓ Linked: .claude/skills/japanese-tech-writing
 ```
+
+The scope is auto-detected — `project` inside a git repository, `user` outside — and the first output line always states which one was picked and why. Pass `--scope` to override.
 
 The skill is added with `git submodule add https://gist.github.com/<id>.git .agents/skills/<name>` at the repository root and staged together with `.gitmodules` — review and commit as usual. It is pinned to the current commit and travels with your repository; on another machine, `git submodule update --init` restores it. If the destination path already exists, `add` refuses and asks you to remove it first.
 
@@ -53,10 +56,11 @@ Skills installed with `copy` do not appear here — a copy is a plain snapshot w
 
 ```console
 $ gh gist-skill copy https://gist.github.com/k16shikano/fd287c3133457c4fd8f5601d34aa817d
+✓ Scope: project (git repository detected)
 ✓ Resolved gist: fd287c3133457c4fd8f5601d34aa817d
 ✓ Detected skill name from SKILL.md: japanese-tech-writing
 ✓ Copied snapshot: .agents/skills/japanese-tech-writing
-✓ Linked: ~/.claude/skills/japanese-tech-writing
+✓ Linked: .claude/skills/japanese-tech-writing
 ```
 
 `copy` takes a fire-and-forget snapshot of the gist:
