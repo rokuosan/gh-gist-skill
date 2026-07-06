@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 )
@@ -40,10 +41,15 @@ func ParseID(input string) (string, error) {
 	s = strings.TrimSuffix(s, "/")
 
 	if strings.Contains(s, "/") {
-		if !strings.Contains(s, "gist.github.com") {
-			return "", fmt.Errorf("not a gist URL: %s", input)
+		withScheme := s
+		if !strings.Contains(withScheme, "://") {
+			withScheme = "https://" + withScheme
 		}
-		s = s[strings.LastIndex(s, "/")+1:]
+		u, err := url.Parse(withScheme)
+		if err != nil || u.Hostname() != "gist.github.com" {
+			return "", fmt.Errorf("not a gist.github.com URL: %s", input)
+		}
+		s = u.Path[strings.LastIndex(u.Path, "/")+1:]
 	}
 	s = strings.TrimSuffix(s, ".git")
 
