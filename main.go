@@ -2,25 +2,36 @@ package main
 
 import (
 	"fmt"
+	"os"
 
-	"github.com/cli/go-gh/v2/pkg/api"
+	"github.com/rokuosan/gh-gist-skill/internal/cli"
 )
 
-func main() {
-	fmt.Println("hi world, this is the gh-gist-skill extension!")
-	client, err := api.DefaultRESTClient()
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	response := struct {Login string}{}
-	err = client.Get("user", &response)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	fmt.Printf("running as %s\n", response.Login)
-}
+const usage = `gh gist-skill: install Agent Skills published as GitHub Gists
 
-// For more examples of using go-gh, see:
-// https://github.com/cli/go-gh/blob/trunk/example_gh_test.go
+Usage:
+  gh gist-skill copy <gist-url|gist-id> [flags]   snapshot-copy a gist skill (not tracked)
+
+Run 'gh gist-skill <command> --help' for command flags.
+`
+
+func main() {
+	if len(os.Args) < 2 {
+		fmt.Fprint(os.Stderr, usage)
+		os.Exit(1)
+	}
+	var err error
+	switch os.Args[1] {
+	case "copy":
+		err = cli.Copy(os.Args[2:])
+	case "-h", "--help", "help":
+		fmt.Print(usage)
+	default:
+		fmt.Fprintf(os.Stderr, "unknown command: %s\n\n%s", os.Args[1], usage)
+		os.Exit(1)
+	}
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Error:", err)
+		os.Exit(1)
+	}
+}
