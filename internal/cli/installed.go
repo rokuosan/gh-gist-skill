@@ -70,6 +70,11 @@ func userSkills() ([]installedSkill, error) {
 		if !e.IsDir() {
 			continue
 		}
+		// Only manage directories that are git clones; anything else in the
+		// store was not installed by this tool and must not be touched.
+		if _, err := os.Stat(filepath.Join(store, e.Name(), ".git")); err != nil {
+			continue
+		}
 		skills = append(skills, installedSkill{
 			Name:  e.Name(),
 			Scope: "user",

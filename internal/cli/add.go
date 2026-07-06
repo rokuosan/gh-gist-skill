@@ -19,7 +19,6 @@ import (
 // linked into the agent skill directories.
 func Add(args []string) error {
 	fs := flag.NewFlagSet("add", flag.ContinueOnError)
-	path := fs.String("path", filepath.Join(".agents", "skills"), "destination directory for the submodule (project scope)")
 	scope := fs.String("scope", "auto", "installation scope: auto, project (submodule), or user (clone)")
 	noLink := fs.Bool("no-link", false, "skip creating symlinks into agent skill directories")
 	fs.Usage = func() {
@@ -57,14 +56,15 @@ func Add(args []string) error {
 	cloneURL := "https://gist.github.com/" + g.ID + ".git"
 
 	if insideRepo {
-		return addSubmodule(cloneURL, *path, name, *noLink)
+		return addSubmodule(cloneURL, name, *noLink)
 	}
 	return addClone(cloneURL, name, *noLink)
 }
 
 // addSubmodule installs the skill as a git submodule (project scope).
-func addSubmodule(cloneURL, path, name string, noLink bool) error {
-	dest := filepath.Join(path, name)
+// The path is fixed to .agents/skills so list/update/remove always find it.
+func addSubmodule(cloneURL, name string, noLink bool) error {
+	dest := filepath.Join(".agents", "skills", name)
 	if _, err := os.Lstat(dest); err == nil {
 		return fmt.Errorf("%s already exists; remove it first", dest)
 	}
@@ -101,6 +101,17 @@ func addClone(cloneURL, name string, noLink bool) error {
 	if noLink {
 		return nil
 	}
+	if err := linkUser(dest, name); err != nil {
+		// Roll back so a failed add leaves nothing half-installed behind.
+		os.RemoveAll(dest)
+		removeLinks(name, dest)
+		return err
+	}
+	return nil
+}
+
+// linkUser links a user-scope skill into ~/.agents/skills and ~/.claude/skills.
+func linkUser(dest, name string) error {
 	agentsDir, err := agent.AgentsSkillsDir()
 	if err != nil {
 		return err

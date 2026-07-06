@@ -90,11 +90,19 @@ func Submodules(dir string) ([]Submodule, error) {
 		return nil, err
 	}
 	if _, err := os.Stat(filepath.Join(root, ".gitmodules")); err != nil {
-		return nil, nil
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
 	}
 	out, err := run(root, "config", "-f", ".gitmodules", "--get-regexp", `^submodule\.`)
 	if err != nil {
-		return nil, nil // no submodule entries
+		// `git config --get-regexp` exits 1 with no stderr when nothing
+		// matches; anything else (malformed file, permissions) is a real error.
+		if strings.HasSuffix(err.Error(), ": exit status 1") {
+			return nil, nil
+		}
+		return nil, err
 	}
 	index := map[string]int{}
 	var subs []Submodule

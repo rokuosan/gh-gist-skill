@@ -65,6 +65,20 @@ func TestUserScopeUpdateAndRemove(t *testing.T) {
 
 	dest := installUserSkill(t, upstream, "my-skill")
 
+	// A stray non-git directory in the store is not managed: update ignores
+	// it and remove refuses to delete it.
+	store, err := agent.UserStoreDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stray := filepath.Join(store, "not-a-skill")
+	if err := os.MkdirAll(stray, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := Remove([]string{"not-a-skill"}); err == nil {
+		t.Error("Remove(not-a-skill): want error for non-git directory, got nil")
+	}
+
 	// A new upstream commit is picked up by update.
 	if err := os.WriteFile(filepath.Join(upstream, "extra.md"), []byte("x\n"), 0o644); err != nil {
 		t.Fatal(err)
@@ -94,6 +108,9 @@ func TestUserScopeUpdateAndRemove(t *testing.T) {
 	}
 	if _, err := os.Lstat(dest); !os.IsNotExist(err) {
 		t.Errorf("clone still exists after remove")
+	}
+	if _, err := os.Stat(stray); err != nil {
+		t.Errorf("stray directory was touched: %v", err)
 	}
 	for _, sub := range []string{".agents", ".claude"} {
 		link := filepath.Join(home, sub, "skills", "my-skill")

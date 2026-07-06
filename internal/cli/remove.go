@@ -17,8 +17,9 @@ import (
 // tool created.
 func Remove(args []string) error {
 	fs := flag.NewFlagSet("remove", flag.ContinueOnError)
+	scope := fs.String("scope", "", "restrict to one scope: project or user")
 	fs.Usage = func() {
-		fmt.Fprintln(fs.Output(), "Usage: gh gist-skill remove <name>")
+		fmt.Fprintln(fs.Output(), "Usage: gh gist-skill remove <name> [flags]")
 		fs.PrintDefaults()
 	}
 	if err := fs.Parse(args); err != nil {
@@ -31,6 +32,9 @@ func Remove(args []string) error {
 		fs.Usage()
 		return fmt.Errorf("expected exactly one skill name")
 	}
+	if *scope != "" && *scope != "project" && *scope != "user" {
+		return fmt.Errorf("invalid --scope %q (project or user)", *scope)
+	}
 	name := fs.Arg(0)
 
 	project, err := projectSkills()
@@ -42,28 +46,37 @@ func Remove(args []string) error {
 		return err
 	}
 
+	var matches []installedSkill
 	for _, s := range append(project, user...) {
-		if s.Name != name {
-			continue
+		if s.Name == name && (*scope == "" || s.Scope == *scope) {
+			matches = append(matches, s)
 		}
-		target, err := filepath.Abs(s.dir())
-		if err != nil {
+	}
+	switch len(matches) {
+	case 0:
+		return fmt.Errorf("skill %q is not installed", name)
+	case 1:
+	default:
+		return fmt.Errorf("skill %q is installed in both project and user scope; pick one with --scope", name)
+	}
+
+	s := matches[0]
+	target, err := filepath.Abs(s.dir())
+	if err != nil {
+		return err
+	}
+	if s.Scope == "project" {
+		if err := removeSubmodule(s); err != nil {
 			return err
 		}
-		if s.Scope == "project" {
-			if err := removeSubmodule(s); err != nil {
-				return err
-			}
-			fmt.Printf("✓ Removed submodule: %s (commit the change to finish)\n", s.Path)
-		} else {
-			if err := os.RemoveAll(s.Path); err != nil {
-				return err
-			}
-			fmt.Printf("✓ Removed: %s\n", s.Path)
+		fmt.Printf("✓ Removed submodule: %s (commit the change to finish)\n", s.Path)
+	} else {
+		if err := os.RemoveAll(s.Path); err != nil {
+			return err
 		}
-		return removeLinks(name, target)
+		fmt.Printf("✓ Removed: %s\n", s.Path)
 	}
-	return fmt.Errorf("skill %q is not installed", name)
+	return removeLinks(name, target)
 }
 
 func removeSubmodule(s installedSkill) error {

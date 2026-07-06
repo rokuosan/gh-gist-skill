@@ -66,12 +66,17 @@ $ gh gist-skill copy https://gist.github.com/k16shikano/fd287c3133457c4fd8f5601d
 
 The snapshot is plain files — it does not appear in any manifest and there is no update tracking. To update a skill, run `copy` again; it replaces the existing snapshot atomically.
 
-### Flags (both commands)
+### Flags
 
-| Flag | Description |
-| --- | --- |
-| `--path <dir>` | Destination directory (default: `.agents/skills`) |
-| `--no-link` | Skip creating the `~/.claude/skills` symlink |
+| Command | Flag | Description |
+| --- | --- | --- |
+| `add` | `--scope <s>` | `auto` (default), `project` (submodule), or `user` (clone) |
+| `add`, `copy` | `--no-link` | Skip creating symlinks into agent skill directories |
+| `copy` | `--path <dir>` | Destination directory (default: `.agents/skills`) |
+| `remove` | `--scope <s>` | Disambiguate when a skill exists in both scopes |
+| `list` | `--no-status` | Skip the network check for upstream updates |
+
+`add` always installs to `.agents/skills/<name>` (project) or the data directory (user) so that `list` / `update` / `remove` can find what it installed; only the untracked `copy` takes a free-form `--path`.
 
 ### Notes
 
