@@ -2,6 +2,7 @@
 package cli
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"net/http"
@@ -31,6 +32,9 @@ func Copy(args []string) error {
 		fs.PrintDefaults()
 	}
 	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return nil
+		}
 		return err
 	}
 	if fs.NArg() != 1 {
